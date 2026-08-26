@@ -247,7 +247,7 @@
 
         .grid-config {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 8px;
             background: var(--grid-bg);
             padding: 10px;
@@ -374,9 +374,20 @@
     </div>
 
     <div class="form-group">
-        <label for="dataInicio">Data Inicial</label>
+        <label for="dataInicio">Data de início do bloco</label>
         <input type="date" id="dataInicio" onchange="validarEsalvarData()">
         <div id="dataValidationAlert"></div>
+    </div>
+
+    <!-- Novo campo de seleção de tipo de atividade -->
+    <div class="form-group">
+        <label for="tipoAtividade">Exibir Atividades</label>
+        <select id="tipoAtividade" onchange="salvarFormulario()">
+            <option value="TODOS" selected>Tudo (Encontros, Autoavaliação e Quizzes)</option>
+            <option value="ENCONTROS">Apenas Encontros de Tutoria</option>
+            <option value="AUTOAVALIACAO">Apenas Autoavaliação</option>
+            <option value="QUIZZES">Apenas Quizzes</option>
+        </select>
     </div>
 
     <button class="btn-primary" onclick="gerarCronograma()">Gerar Cronograma</button>
@@ -400,6 +411,7 @@
 
 <script>
     let currentFontSize = 16;
+    const diasSemanaNomes = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 
     window.onload = function() {
         carregarPreferencias();
@@ -423,10 +435,14 @@
 
         const savedData = localStorage.getItem('cronograma_data');
         if (savedData) document.getElementById('dataInicio').value = savedData;
+
+        const savedTipoAtividade = localStorage.getItem('cronograma_tipo_atividade');
+        if (savedTipoAtividade) document.getElementById('tipoAtividade').value = savedTipoAtividade;
     }
 
     function salvarFormulario() {
         localStorage.setItem('cronograma_periodo', document.getElementById('periodo').value);
+        localStorage.setItem('cronograma_tipo_atividade', document.getElementById('tipoAtividade').value);
     }
 
     function validarEsalvarData() {
@@ -480,12 +496,24 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    function formatarTextoVazio(valor) {
+        if (!valor || valor === '-' || valor === '') {
+            return '<span class="empty-field">vazio</span>';
+        }
+        return valor;
+    }
+
     function formatarData(date) {
-        if (!date) return '<span class="empty-field">vazio</span>';
+        if (!date) return formatarTextoVazio(null);
         const dia = String(date.getDate()).padStart(2, '0');
         const mes = String(date.getMonth() + 1).padStart(2, '0');
         const ano = date.getFullYear();
         return `${dia}/${mes}/${ano}`;
+    }
+
+    function obterDiaSemana(date) {
+        if (!date) return formatarTextoVazio(null);
+        return diasSemanaNomes[date.getDay()];
     }
 
     function adicionarDias(date, dias) {
@@ -553,19 +581,19 @@
             <div class="sub-section">
                 <div class="section-title title-q">● Quiz</div>
                 <div class="grid-config grid-header">
-                    <div>Configuração</div><div>Data</div><div>Tempo</div>
+                    <div>Configuração</div><div>Data</div><div>Tempo</div><div>Dia da Semana</div>
                 </div>
                 <div class="grid-config">
-                    <div>Prazo de entrega</div><div>${formatarData(quizEntrega)}</div><div>23:59</div>
+                    <div>Prazo de entrega</div><div>${formatarData(quizEntrega)}</div><div>23:59</div><div>${obterDiaSemana(quizEntrega)}</div>
                 </div>
                 <div class="grid-config">
-                    <div>Disponível a partir de</div><div>${formatarData(quizSexta)}</div><div>08:00</div>
+                    <div>Disponível a partir de</div><div>${formatarData(quizSexta)}</div><div>08:00</div><div>${obterDiaSemana(quizSexta)}</div>
                 </div>
                 <div class="grid-config">
-                    <div>Até</div><div>${formatarData(quizEntrega)}</div><div>23:59</div>
+                    <div>Até</div><div>${formatarData(quizEntrega)}</div><div>23:59</div><div>${obterDiaSemana(quizEntrega)}</div>
                 </div>
                 <div class="grid-config">
-                    <div>Gabarito Disponível</div><div>${formatarData(quizTerca)}</div><div>00:05</div>
+                    <div>Gabarito Disponível</div><div>${formatarData(quizTerca)}</div><div>00:05</div><div>${obterDiaSemana(quizTerca)}</div>
                 </div>
             </div>
         </div>`;
@@ -574,10 +602,11 @@
     function gerarCronograma() {
         const periodo = document.getElementById('periodo').value;
         const dataInicioInput = document.getElementById('dataInicio').value;
+        const tipoAtividade = document.getElementById('tipoAtividade').value;
         const resultadoDiv = document.getElementById('resultado');
 
         if (!periodo || !dataInicioInput) {
-            resultadoDiv.innerHTML = '<div class="alert">Por favor, preencha o Período e a Data Inicial.</div>';
+            resultadoDiv.innerHTML = '<div class="alert">Por favor, preencha o Período e a Data de início do bloco.</div>';
             return;
         }
 
@@ -604,102 +633,137 @@
         let htmlGerado = '';
         const ehDivididoPorAreas = ['P5', 'P6', 'P7', 'P8'].includes(periodo);
 
-        encontros.forEach((encontro, index) => {
-            const numeroEncontro = index + 1;
+        const exibirEncontros = (tipoAtividade === 'TODOS' || tipoAtividade === 'ENCONTROS');
+        const exibirAutoAvFiltro = (tipoAtividade === 'TODOS' || tipoAtividade === 'AUTOAVALIACAO');
+        const exibirQuizzesFiltro = (tipoAtividade === 'TODOS' || tipoAtividade === 'QUIZZES');
 
+        // Renderização dos Encontros / Autoavaliação
+        if (exibirEncontros || exibirAutoAvFiltro) {
+            encontros.forEach((encontro, index) => {
+                const numeroEncontro = index + 1;
+
+                if (ehDivididoPorAreas) {
+                    if (numeroEncontro === 1) htmlGerado += '<div class="area-title">1ª Área (Encontro 1 a 4)</div>';
+                    if (numeroEncontro === 5) htmlGerado += '<div class="area-title">2ª Área (Encontro 1 a 4)</div>';
+                }
+
+                let labelEncontro = numeroEncontro;
+                if (ehDivididoPorAreas && numeroEncontro > 4) labelEncontro = numeroEncontro - 4;
+
+                let autoAvData = null;
+                let terAutoAv = false;
+                let numAutoAv = 0;
+
+                if (['P1', 'P2', 'P3', 'P4'].includes(periodo)) {
+                    if (numeroEncontro % 2 === 0) {
+                        autoAvData = encontros[index - 1];
+                        terAutoAv = true;
+                        numAutoAv = numeroEncontro / 2;
+                    }
+                } else {
+                    autoAvData = obterSextaAnterior(encontro);
+                    terAutoAv = true;
+                    numAutoAv = labelEncontro;
+                }
+
+                const cardId = `enc_${periodo}_${numeroEncontro}_${encontro.getTime()}`;
+                const isDone = localStorage.getItem(`card_done_${cardId}`) === 'true';
+
+                // Se o usuário quer apenas autoavaliação e este encontro não tem autoavaliação, pula
+                if (tipoAtividade === 'AUTOAVALIACAO' && !terAutoAv) return;
+
+                htmlGerado += `
+                <div class="card ${isDone ? 'completed' : ''}" id="${cardId}">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <input type="checkbox" class="card-checkbox" onchange="toggleCardComplete('${cardId}')" ${isDone ? 'checked' : ''}>
+                            <span>Encontro ${labelEncontro} (${periodo})</span>
+                        </div>
+                        <span class="data-main">${formatarData(encontro)}</span>
+                    </div>`;
+
+                // Bloco do Encontro de Tutoria
+                if (exibirEncontros) {
+                    htmlGerado += `
+                    <div class="sub-section">
+                        <div class="section-title title-p">● Tutoria / Encontro</div>
+                        <div class="grid-config grid-header">
+                            <div>Configuração</div><div>Data</div><div>Tempo</div><div>Dia da Semana</div>
+                        </div>
+                        <div class="grid-config">
+                            <div>Prazo de entrega</div><div>${formatarData(encontro)}</div><div>${horaPadrao}</div><div>${obterDiaSemana(encontro)}</div>
+                        </div>`;
+
+                    if (ehDivididoPorAreas) {
+                        htmlGerado += `
+                            <div class="grid-config">
+                                <div>Disponível a partir de</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
+                            </div>
+                            <div class="grid-config">
+                                <div>Até</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
+                            </div>`;
+                    } else {
+                        htmlGerado += `
+                            <div class="grid-config">
+                                <div>Disponível a partir de</div><div>${formatarData(encontro)}</div><div>00:00</div><div>${obterDiaSemana(encontro)}</div>
+                            </div>
+                            <div class="grid-config">
+                                <div>Até</div><div>${formatarData(encontro)}</div><div>${horaPadrao}</div><div>${obterDiaSemana(encontro)}</div>
+                            </div>`;
+                    }
+                    htmlGerado += `</div>`;
+                }
+
+                // Bloco da Autoavaliação
+                if (exibirAutoAvFiltro && terAutoAv) {
+                    htmlGerado += `
+                    <div class="sub-section">
+                        <div class="section-title title-a">● Autoavaliação ${String(numAutoAv).padStart(2, '0')}</div>
+                        <div class="grid-config grid-header">
+                            <div>Configuração</div><div>Data</div><div>Tempo</div><div>Dia da Semana</div>
+                        </div>
+                        <div class="grid-config">
+                            <div>Prazo de entrega</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
+                        </div>
+                        <div class="grid-config">
+                            <div>Disponível a partir de</div><div>${formatarData(autoAvData)}</div><div>17:00</div><div>${obterDiaSemana(autoAvData)}</div>
+                        </div>
+                        <div class="grid-config">
+                            <div>Até</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
+                        </div>
+                    </div>`;
+                }
+
+                htmlGerado += `</div>`;
+
+                // Intercalação de Quizzes se o filtro for "TODOS"
+                if (tipoAtividade === 'TODOS' && ehDivididoPorAreas && numeroEncontro === 4) {
+                    htmlGerado += '<div class="area-title">Quizzes - 1ª Área</div>';
+                    for (let q = 1; q <= 4; q++) {
+                        htmlGerado += gerarHtmlQuiz(q, encontros[0]);
+                    }
+                }
+            });
+        }
+
+        // Renderização dos Quizzes
+        if (exibirQuizzesFiltro) {
             if (ehDivididoPorAreas) {
-                if (numeroEncontro === 1) htmlGerado += '<div class="area-title">1ª Área (Encontro 1 a 4)</div>';
-                if (numeroEncontro === 5) htmlGerado += '<div class="area-title">2ª Área (Encontro 1 a 4)</div>';
-            }
-
-            let labelEncontro = numeroEncontro;
-            if (ehDivididoPorAreas && numeroEncontro > 4) labelEncontro = numeroEncontro - 4;
-
-            let autoAvData = '';
-            let exibirAutoAv = false;
-            let numAutoAv = 0;
-
-            if (['P1', 'P2', 'P3', 'P4'].includes(periodo)) {
-                if (numeroEncontro % 2 === 0) {
-                    const encontroImparAnterior = encontros[index - 1];
-                    autoAvData = formatarData(encontroImparAnterior);
-                    exibirAutoAv = true;
-                    numAutoAv = numeroEncontro / 2;
+                if (tipoAtividade !== 'TODOS') {
+                    htmlGerado += '<div class="area-title">Quizzes - 1ª Área</div>';
+                    for (let q = 1; q <= 4; q++) {
+                        htmlGerado += gerarHtmlQuiz(q, encontros[0]);
+                    }
+                }
+                htmlGerado += '<div class="area-title">Quizzes - 2ª Área</div>';
+                for (let q = 1; q <= 4; q++) {
+                    htmlGerado += gerarHtmlQuiz(q, encontros[4]);
                 }
             } else {
-                const sextaAnterior = obterSextaAnterior(encontro);
-                autoAvData = formatarData(sextaAnterior);
-                exibirAutoAv = true;
-                numAutoAv = labelEncontro;
-            }
-
-            const cardId = `enc_${periodo}_${numeroEncontro}_${encontro.getTime()}`;
-            const isDone = localStorage.getItem(`card_done_${cardId}`) === 'true';
-
-            htmlGerado += `
-            <div class="card ${isDone ? 'completed' : ''}" id="${cardId}">
-                <div class="card-header">
-                    <div class="card-header-left">
-                        <input type="checkbox" class="card-checkbox" onchange="toggleCardComplete('${cardId}')" ${isDone ? 'checked' : ''}>
-                        <span>Encontro ${labelEncontro} (${periodo})</span>
-                    </div>
-                    <span class="data-main">${formatarData(encontro)}</span>
-                </div>
-                
-                <div class="sub-section">
-                    <div class="section-title title-p">● Tutoria / Encontro</div>
-                    <div class="grid-config grid-header">
-                        <div>Configuração</div><div>Data</div><div>Tempo</div>
-                    </div>
-                    <div class="grid-config">
-                        <div>Prazo de entrega</div><div>${formatarData(encontro)}</div><div>${horaPadrao}</div>
-                    </div>
-                    <div class="grid-config">
-                        <div>Disponível a partir de</div><div>${formatarData(encontro)}</div><div>00:00</div>
-                    </div>
-                    <div class="grid-config">
-                        <div>Até</div><div>${formatarData(encontro)}</div><div>${horaPadrao}</div>
-                    </div>
-                </div>`;
-
-            if (exibirAutoAv) {
-                htmlGerado += `
-                <div class="sub-section">
-                    <div class="section-title title-a">● Autoavaliação ${String(numAutoAv).padStart(2, '0')}</div>
-                    <div class="grid-config grid-header">
-                        <div>Configuração</div><div>Data</div><div>Tempo</div>
-                    </div>
-                    <div class="grid-config">
-                        <div>Prazo de entrega</div><div>-</div><div>-</div>
-                    </div>
-                    <div class="grid-config">
-                        <div>Disponível a partir de</div><div>${autoAvData}</div><div>17:00</div>
-                    </div>
-                    <div class="grid-config">
-                        <div>Até</div><div>-</div><div>-</div>
-                    </div>
-                </div>`;
-            }
-
-            htmlGerado += `</div>`;
-
-            if (ehDivididoPorAreas && numeroEncontro === 4) {
-                htmlGerado += '<div class="area-title">Quizzes - 1ª Área</div>';
+                htmlGerado += '<div class="area-title">Quizzes do Período</div>';
                 for (let q = 1; q <= 4; q++) {
-                    htmlGerado += gerarHtmlQuiz(q, encontros[0]);
+                    htmlGerado += gerarHtmlQuiz(q, dataInicialRef);
                 }
-            }
-        });
-
-        if (ehDivididoPorAreas) {
-            htmlGerado += '<div class="area-title">Quizzes - 2ª Área</div>';
-            for (let q = 1; q <= 4; q++) {
-                htmlGerado += gerarHtmlQuiz(q, encontros[4]);
-            }
-        } else {
-            htmlGerado += '<div class="area-title">Quizzes do Período</div>';
-            for (let q = 1; q <= 4; q++) {
-                htmlGerado += gerarHtmlQuiz(q, dataInicialRef);
             }
         }
 
