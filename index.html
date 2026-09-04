@@ -379,7 +379,6 @@
         <div id="dataValidationAlert"></div>
     </div>
 
-    <!-- Novo campo de seleção de tipo de atividade -->
     <div class="form-group">
         <label for="tipoAtividade">Exibir Atividades</label>
         <select id="tipoAtividade" onchange="salvarFormulario()">
@@ -542,12 +541,42 @@
     function toggleCardComplete(cardId) {
         const card = document.getElementById(cardId);
         const checkbox = card.querySelector('.card-checkbox');
+        
         if (checkbox.checked) {
             card.classList.add('completed');
             localStorage.setItem(`card_done_${cardId}`, 'true');
+            rolarParaProximoCard(card);
         } else {
             card.classList.remove('completed');
             localStorage.removeItem(`card_done_${cardId}`);
+        }
+    }
+
+    function rolarParaProximoCard(cardAtual) {
+        const todosCards = Array.from(document.querySelectorAll('.card'));
+        const indexAtual = todosCards.indexOf(cardAtual);
+        
+        let proximoCard = null;
+        for (let i = indexAtual + 1; i < todosCards.length; i++) {
+            if (!todosCards[i].classList.contains('completed')) {
+                proximoCard = todosCards[i];
+                break;
+            }
+        }
+
+        if (!proximoCard && indexAtual < todosCards.length - 1) {
+            proximoCard = todosCards[indexAtual + 1];
+        }
+
+        if (proximoCard) {
+            const headerOffset = 70;
+            const cardPosition = proximoCard.getBoundingClientRect().top + window.pageYOffset;
+            const offsetPosition = cardPosition - headerOffset;
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+            });
         }
     }
 
@@ -614,22 +643,32 @@
         const dataInicialRef = new Date(dataAtual.getTime());
         resultadoDiv.innerHTML = '';
 
-        let diasPermitidos = [];
-        let horaPadrao = "23:59";
-
-        if (periodo === 'P1') diasPermitidos = [3, 0];
-        else if (periodo === 'P2') { diasPermitidos = [4, 1]; horaPadrao = "12:00"; }
-        else if (periodo === 'P3' || periodo === 'P4') diasPermitidos = [4, 1];
-        else diasPermitidos = [0];
-
         let encontros = [];
-        while (encontros.length < 8) {
-            if (diasPermitidos.includes(dataAtual.getDay())) {
-                encontros.push(new Date(dataAtual.getTime()));
+
+        if (['P2', 'P3', 'P4'].includes(periodo)) {
+            while (dataAtual.getDay() !== 4) {
+                dataAtual = adicionarDias(dataAtual, 1);
             }
-            dataAtual = adicionarDias(dataAtual, 1);
+            
+            let diaSeguinte = 4;
+            while (encontros.length < 8) {
+                if (dataAtual.getDay() === diaSeguinte) {
+                    encontros.push(new Date(dataAtual.getTime()));
+                    diaSeguinte = (diaSeguinte === 4) ? 1 : 4;
+                }
+                dataAtual = adicionarDias(dataAtual, 1);
+            }
+        } else {
+            let diasPermitidos = (periodo === 'P1') ? [3, 0] : [0];
+            while (encontros.length < 8) {
+                if (diasPermitidos.includes(dataAtual.getDay())) {
+                    encontros.push(new Date(dataAtual.getTime()));
+                }
+                dataAtual = adicionarDias(dataAtual, 1);
+            }
         }
 
+        let horaPadrao = (periodo === 'P2') ? "12:00" : "23:59";
         let htmlGerado = '';
         const ehDivididoPorAreas = ['P5', 'P6', 'P7', 'P8'].includes(periodo);
 
@@ -637,7 +676,6 @@
         const exibirAutoAvFiltro = (tipoAtividade === 'TODOS' || tipoAtividade === 'AUTOAVALIACAO');
         const exibirQuizzesFiltro = (tipoAtividade === 'TODOS' || tipoAtividade === 'QUIZZES');
 
-        // Renderização dos Encontros / Autoavaliação
         if (exibirEncontros || exibirAutoAvFiltro) {
             encontros.forEach((encontro, index) => {
                 const numeroEncontro = index + 1;
@@ -669,7 +707,6 @@
                 const cardId = `enc_${periodo}_${numeroEncontro}_${encontro.getTime()}`;
                 const isDone = localStorage.getItem(`card_done_${cardId}`) === 'true';
 
-                // Se o usuário quer apenas autoavaliação e este encontro não tem autoavaliação, pula
                 if (tipoAtividade === 'AUTOAVALIACAO' && !terAutoAv) return;
 
                 htmlGerado += `
@@ -682,7 +719,6 @@
                         <span class="data-main">${formatarData(encontro)}</span>
                     </div>`;
 
-                // Bloco do Encontro de Tutoria
                 if (exibirEncontros) {
                     htmlGerado += `
                     <div class="sub-section">
@@ -692,29 +728,16 @@
                         </div>
                         <div class="grid-config">
                             <div>Prazo de entrega</div><div>${formatarData(encontro)}</div><div>${horaPadrao}</div><div>${obterDiaSemana(encontro)}</div>
-                        </div>`;
-
-                    if (ehDivididoPorAreas) {
-                        htmlGerado += `
-                            <div class="grid-config">
-                                <div>Disponível a partir de</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
-                            </div>
-                            <div class="grid-config">
-                                <div>Até</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
-                            </div>`;
-                    } else {
-                        htmlGerado += `
-                            <div class="grid-config">
-                                <div>Disponível a partir de</div><div>${formatarData(encontro)}</div><div>00:00</div><div>${obterDiaSemana(encontro)}</div>
-                            </div>
-                            <div class="grid-config">
-                                <div>Até</div><div>${formatarData(encontro)}</div><div>${horaPadrao}</div><div>${obterDiaSemana(encontro)}</div>
-                            </div>`;
-                    }
-                    htmlGerado += `</div>`;
+                        </div>
+                        <div class="grid-config">
+                            <div>Disponível a partir de</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
+                        </div>
+                        <div class="grid-config">
+                            <div>Até</div><div>${formatarData(encontro)}</div><div>${horaPadrao}</div><div>${obterDiaSemana(encontro)}</div>
+                        </div>
+                    </div>`;
                 }
 
-                // Bloco da Autoavaliação
                 if (exibirAutoAvFiltro && terAutoAv) {
                     htmlGerado += `
                     <div class="sub-section">
@@ -736,7 +759,6 @@
 
                 htmlGerado += `</div>`;
 
-                // Intercalação de Quizzes se o filtro for "TODOS"
                 if (tipoAtividade === 'TODOS' && ehDivididoPorAreas && numeroEncontro === 4) {
                     htmlGerado += '<div class="area-title">Quizzes - 1ª Área</div>';
                     for (let q = 1; q <= 4; q++) {
@@ -746,7 +768,6 @@
             });
         }
 
-        // Renderização dos Quizzes
         if (exibirQuizzesFiltro) {
             if (ehDivididoPorAreas) {
                 if (tipoAtividade !== 'TODOS') {
