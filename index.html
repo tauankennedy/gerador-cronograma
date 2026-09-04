@@ -755,6 +755,26 @@
                             <div>Até</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
                         </div>
                     </div>`;
+
+                    // Inclusão da Autoavaliação - Dinâmica de Grupo após a Autoavaliação 04
+                    if (numAutoAv === 4) {
+                        htmlGerado += `
+                        <div class="sub-section">
+                            <div class="section-title title-a">● Autoavaliação - Dinâmica de Grupo</div>
+                            <div class="grid-config grid-header">
+                                <div>Configuração</div><div>Data</div><div>Tempo</div><div>Dia da Semana</div>
+                            </div>
+                            <div class="grid-config">
+                                <div>Prazo de entrega</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
+                            </div>
+                            <div class="grid-config">
+                                <div>Disponível a partir de</div><div>${formatarData(autoAvData)}</div><div>00:00</div><div>${obterDiaSemana(autoAvData)}</div>
+                            </div>
+                            <div class="grid-config">
+                                <div>Até</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
+                            </div>
+                        </div>`;
+                    }
                 }
 
                 htmlGerado += `</div>`;
