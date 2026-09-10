@@ -281,6 +281,11 @@
             margin-bottom: 15px;
         }
 
+        .alert-error {
+            background: rgba(231, 76, 60, 0.15);
+            border-left: 4px solid var(--red-accent);
+        }
+
         .floating-btn-container {
             position: fixed;
             bottom: 25px;
@@ -382,7 +387,7 @@
     
     <div class="form-group">
         <label for="periodo">Período</label>
-        <select id="periodo" onchange="salvarFormulario()">
+        <select id="periodo" onchange="salvarFormulario(); validarEsalvarData();">
             <option value="" disabled selected>Selecione o período...</option>
             <option value="P1">P1</option>
             <option value="P2">P2</option>
@@ -403,15 +408,15 @@
 
     <div class="form-group">
         <label for="tipoAtividade">Exibir Atividades</label>
-        <select id="tipoAtividade" onchange="salvarFormulario()">
+        <select id="tipoAtividade" onchange="salvarFormulario(); validarEsalvarData();">
             <optgroup label="Cronogramas Mensais">
-                <option value="TODOS" selected>Tudo (Encontros, Autoavaliação e Quizzes) [Mensal]</option>
-                <option value="ENCONTROS">Apenas Encontros de Tutoria [Mensal]</option>
-                <option value="AUTOAVALIACAO">Apenas Autoavaliação [Mensal]</option>
-                <option value="QUIZZES">Apenas Quizzes [Mensal]</option>
+                <option value="TODOS" selected>Tudo (Encontros, Autoavaliação e Quizzes)</option>
+                <option value="ENCONTROS">Apenas Encontros de Tutoria</option>
+                <option value="AUTOAVALIACAO">Apenas Autoavaliação</option>
+                <option value="QUIZZES">Apenas Quizzes</option>
             </optgroup>
             <optgroup label="Cronogramas Semestrais">
-                <option value="MENTORIA">Mentoria / Portfólio [Semestral]</option>
+                <option value="MENTORIA">Mentoria / Portfólio</option>
             </optgroup>
         </select>
     </div>
@@ -476,20 +481,69 @@
         localStorage.setItem('cronograma_tipo_atividade', document.getElementById('tipoAtividade').value);
     }
 
+    function calcularDatasMentoria(periodo, dataInicioInput) {
+        const dataInicio = new Date(dataInicioInput + 'T00:00:00');
+        let datas = [];
+        const data1 = obterProximaSextaQuintaSemana(dataInicio);
+        datas.push(data1);
+
+        const ehPeriodoAvancado = ['P5', 'P6', 'P7', 'P8'].includes(periodo);
+
+        if (!ehPeriodoAvancado) {
+            datas.push(adicionarDias(datas[0], 28));
+            datas.push(adicionarDias(datas[1], 28));
+            datas.push(adicionarDias(datas[2], 28));
+        } else {
+            datas.push(adicionarDias(datas[0], 28));
+            datas.push(adicionarDias(datas[1], 35)); // Semana de pausa
+            datas.push(adicionarDias(datas[2], 28));
+        }
+        return datas;
+    }
+
     function validarEsalvarData() {
         const dataVal = document.getElementById('dataInicio').value;
+        const tipoAtividade = document.getElementById('tipoAtividade').value;
+        const periodo = document.getElementById('periodo').value;
         localStorage.setItem('cronograma_data', dataVal);
         const alertDiv = document.getElementById('dataValidationAlert');
+        alertDiv.innerHTML = '';
         
-        if (!dataVal) return;
+        if (!dataVal) return true;
+
         const selectedDate = new Date(dataVal + 'T00:00:00');
         const dayOfWeek = selectedDate.getDay();
+        let htmlAlerts = '';
 
         if (dayOfWeek === 0 || dayOfWeek === 6) {
-            alertDiv.innerHTML = '<div class="alert" style="margin-top:8px;">⚠️ Atenção: A data inicial selecionada cai em um fim de semana.</div>';
-        } else {
-            alertDiv.innerHTML = '';
+            htmlAlerts += '<div class="alert" style="margin-top:8px;">⚠️ Atenção: A data inicial selecionada cai em um fim de semana.</div>';
         }
+
+        // Validação Semestral para Mentoria
+        if (tipoAtividade === 'MENTORIA' && periodo) {
+            const datas = calcularDatasMentoria(periodo, dataVal);
+            const ultimaData = datas[datas.length - 1];
+            const anoInicio = selectedDate.getFullYear();
+            const mesInicio = selectedDate.getMonth(); // 0-5 = 1º Semestre, 6-11 = 2º Semestre
+
+            let limiteSemestre, nomeSemestre;
+            if (mesInicio <= 5) {
+                limiteSemestre = new Date(anoInicio, 5, 30, 23, 59, 59); // 30 de Junho
+                nomeSemestre = `1º Semestre de ${anoInicio}`;
+            } else {
+                limiteSemestre = new Date(anoInicio, 11, 31, 23, 59, 59); // 31 de Dezembro
+                nomeSemestre = `2º Semestre de ${anoInicio}`;
+            }
+
+            if (ultimaData > limiteSemestre) {
+                htmlAlerts += `<div class="alert alert-error" style="margin-top:8px;">❌ Data inicial muito tardia! A última entrega (${formatarData(ultimaData)}) ultrapassa o limite do ${nomeSemestre}. Selecione uma data inicial mais recente.</div>`;
+                alertDiv.innerHTML = htmlAlerts;
+                return false;
+            }
+        }
+
+        alertDiv.innerHTML = htmlAlerts;
+        return true;
     }
 
     function alterarTamanhoFonte(delta) {
@@ -691,29 +745,7 @@
 
     function gerarCronogramaMentoria(periodo, dataInicioInput) {
         let htmlGerado = '';
-        const dataInicio = new Date(dataInicioInput + 'T00:00:00');
-        
-        let datas = [];
-        // 1ª data: Sexta-feira da 5ª semana a partir da data de início
-        const data1 = obterProximaSextaQuintaSemana(dataInicio);
-        datas.push(data1);
-
-        const ehPeriodoAvancado = ['P5', 'P6', 'P7', 'P8'].includes(periodo);
-
-        if (!ehPeriodoAvancado) {
-            // P1 a P4: 4 datas regulares a cada 4 semanas (28 dias)
-            datas.push(adicionarDias(datas[0], 28)); // 2ª data
-            datas.push(adicionarDias(datas[1], 28)); // 3ª data
-            datas.push(adicionarDias(datas[2], 28)); // 4ª data
-        } else {
-            // P5 a P8:
-            // 2ª data: 4 semanas (28 dias) após a 1ª
-            datas.push(adicionarDias(datas[0], 28));
-            // 3ª data: 5 semanas (35 dias) após a 2ª data (Semana de pausa entre 2ª e 3ª data)
-            datas.push(adicionarDias(datas[1], 35));
-            // 4ª data: 4 semanas (28 dias) após a 3ª data
-            datas.push(adicionarDias(datas[2], 28));
-        }
+        const datas = calcularDatasMentoria(periodo, dataInicioInput);
 
         const nomesBlocos = {
             'P1': ['Bloco 1', 'Bloco 2', 'Bloco 3', 'Bloco 4'],
@@ -772,6 +804,13 @@
 
         if (!periodo || !dataInicioInput) {
             resultadoDiv.innerHTML = '<div class="alert">Por favor, preencha o Período e a Data de início do bloco.</div>';
+            return;
+        }
+
+        if (!validarEsalvarData()) {
+            resultadoDiv.innerHTML = '';
+            document.getElementById('exportBarContainer').style.display = 'none';
+            document.getElementById('searchBarContainer').style.display = 'none';
             return;
         }
 
