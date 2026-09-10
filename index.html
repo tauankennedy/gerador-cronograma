@@ -404,11 +404,15 @@
     <div class="form-group">
         <label for="tipoAtividade">Exibir Atividades</label>
         <select id="tipoAtividade" onchange="salvarFormulario()">
-            <option value="TODOS" selected>Tudo (Encontros, Autoavaliação e Quizzes)</option>
-            <option value="ENCONTROS">Apenas Encontros de Tutoria</option>
-            <option value="AUTOAVALIACAO">Apenas Autoavaliação</option>
-            <option value="QUIZZES">Apenas Quizzes</option>
-            <option value="MENTORIA">Mentoria / Portfólio</option>
+            <optgroup label="Cronogramas Mensais">
+                <option value="TODOS" selected>Tudo (Encontros, Autoavaliação e Quizzes) [Mensal]</option>
+                <option value="ENCONTROS">Apenas Encontros de Tutoria [Mensal]</option>
+                <option value="AUTOAVALIACAO">Apenas Autoavaliação [Mensal]</option>
+                <option value="QUIZZES">Apenas Quizzes [Mensal]</option>
+            </optgroup>
+            <optgroup label="Cronogramas Semestrais">
+                <option value="MENTORIA">Mentoria / Portfólio [Semestral]</option>
+            </optgroup>
         </select>
     </div>
 
@@ -751,7 +755,7 @@
                         <div>Disponível a partir de</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
                     </div>
                     <div class="grid-config">
-                        <div>Até</div><div>${formatarData(dataEntrega)}</div><div>23:59</div><div>${obterDiaSemana(dataEntrega)}</div>
+                        <div>Até</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
                     </div>
                 </div>
             </div>`;
