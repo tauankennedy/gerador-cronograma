@@ -17,6 +17,7 @@
             --p-color: #2ecc71;
             --a-color: #e67e22;
             --q-color: #9b59b6;
+            --m-color: #3498db;
             --red-accent: #e74c3c;
             --red-hover: #c0392b;
         }
@@ -32,6 +33,7 @@
             --p-color: #27ae60;
             --a-color: #d35400;
             --q-color: #8e44ad;
+            --m-color: #2980b9;
         }
 
         html {
@@ -244,6 +246,7 @@
         .title-p { color: var(--p-color); }
         .title-a { color: var(--a-color); }
         .title-q { color: var(--q-color); }
+        .title-m { color: var(--m-color); }
 
         .grid-config {
             display: grid;
@@ -278,15 +281,22 @@
             margin-bottom: 15px;
         }
 
-        .back-to-top {
+        .floating-btn-container {
             position: fixed;
             bottom: 25px;
             right: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .btn-floating {
             width: 50px;
             height: 50px;
-            background-color: var(--red-accent);
-            color: #ffffff;
-            border: none;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
             border-radius: 50%;
             cursor: pointer;
             display: flex;
@@ -294,25 +304,37 @@
             justify-content: center;
             padding: 0;
             line-height: 0;
-            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.3s, visibility 0.3s, transform 0.2s, background-color 0.2s;
-            z-index: 1000;
+            font-size: 20px;
         }
 
-        .back-to-top.show {
+        .btn-floating.show {
             opacity: 1;
             visibility: visible;
         }
 
-        .back-to-top:hover {
-            background-color: var(--red-hover);
+        .btn-floating:hover {
+            border-color: var(--accent-color);
             transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-floating.back-to-top {
+            background-color: var(--red-accent);
+            color: #ffffff;
+            border: none;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+        }
+
+        .btn-floating.back-to-top:hover {
+            background-color: var(--red-hover);
             box-shadow: 0 6px 16px rgba(231, 76, 60, 0.6);
         }
 
-        .back-to-top svg {
+        .btn-floating svg {
             width: 28px;
             height: 28px;
             fill: currentColor;
@@ -320,7 +342,7 @@
         }
 
         @media print {
-            .controls-group, .form-group, .btn-primary, .export-bar, .search-bar, .back-to-top {
+            .controls-group, .form-group, .btn-primary, .export-bar, .search-bar, .floating-btn-container {
                 display: none !important;
             }
             .header-bar {
@@ -386,6 +408,7 @@
             <option value="ENCONTROS">Apenas Encontros de Tutoria</option>
             <option value="AUTOAVALIACAO">Apenas Autoavaliação</option>
             <option value="QUIZZES">Apenas Quizzes</option>
+            <option value="MENTORIA">Mentoria / Portfólio</option>
         </select>
     </div>
 
@@ -402,11 +425,16 @@
     <div id="resultado"></div>
 </div>
 
-<button class="back-to-top" id="btnBackToTop" onclick="subirParaOTopo()" title="Voltar ao topo">
-    <svg viewBox="0 0 24 24">
-        <path d="M12 4l-8 8h5v8h6v-8h5z"/>
-    </svg>
-</button>
+<div class="floating-btn-container">
+    <button class="btn-floating" id="btnClearCheckboxes" onclick="limparTodasCheckboxes()" title="Limpar seleções">
+        🧹
+    </button>
+    <button class="btn-floating back-to-top" id="btnBackToTop" onclick="subirParaOTopo()" title="Voltar ao topo">
+        <svg viewBox="0 0 24 24">
+            <path d="M12 4l-8 8h5v8h6v-8h5z"/>
+        </svg>
+    </button>
+</div>
 
 <script>
     let currentFontSize = 16;
@@ -483,16 +511,36 @@
     }
 
     window.onscroll = function() {
-        const btn = document.getElementById('btnBackToTop');
-        if (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) {
-            btn.classList.add('show');
+        const btnTop = document.getElementById('btnBackToTop');
+        const btnClear = document.getElementById('btnClearCheckboxes');
+        const show = (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200);
+        
+        if (show) {
+            btnTop.classList.add('show');
+            btnClear.classList.add('show');
         } else {
-            btn.classList.remove('show');
+            btnTop.classList.remove('show');
+            btnClear.classList.remove('show');
         }
     };
 
     function subirParaOTopo() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function limparTodasCheckboxes() {
+        if (confirm("Deseja desmarcar todos os cards concluídos?")) {
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('card_done_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            document.querySelectorAll('.card').forEach(card => {
+                card.classList.remove('completed');
+                const cb = card.querySelector('.card-checkbox');
+                if (cb) cb.checked = false;
+            });
+        }
     }
 
     function formatarTextoVazio(valor) {
@@ -518,6 +566,15 @@
     function adicionarDias(date, dias) {
         const resultado = new Date(date.getTime());
         resultado.setDate(resultado.getDate() + dias);
+        return resultado;
+    }
+
+    function obterProximaSextaQuintaSemana(date) {
+        let resultado = new Date(date.getTime());
+        resultado.setDate(resultado.getDate() + 28);
+        while (resultado.getDay() !== 5) {
+            resultado.setDate(resultado.getDate() + 1);
+        }
         return resultado;
     }
 
@@ -628,6 +685,81 @@
         </div>`;
     }
 
+    function gerarCronogramaMentoria(periodo, dataInicioInput) {
+        let htmlGerado = '';
+        const dataInicio = new Date(dataInicioInput + 'T00:00:00');
+        
+        let datas = [];
+        // 1ª data: Sexta-feira da 5ª semana a partir da data de início
+        const data1 = obterProximaSextaQuintaSemana(dataInicio);
+        datas.push(data1);
+
+        const ehPeriodoAvancado = ['P5', 'P6', 'P7', 'P8'].includes(periodo);
+
+        if (!ehPeriodoAvancado) {
+            // P1 a P4: 4 datas regulares a cada 4 semanas (28 dias)
+            datas.push(adicionarDias(datas[0], 28)); // 2ª data
+            datas.push(adicionarDias(datas[1], 28)); // 3ª data
+            datas.push(adicionarDias(datas[2], 28)); // 4ª data
+        } else {
+            // P5 a P8:
+            // 2ª data: 4 semanas (28 dias) após a 1ª
+            datas.push(adicionarDias(datas[0], 28));
+            // 3ª data: 5 semanas (35 dias) após a 2ª data (Semana de pausa entre 2ª e 3ª data)
+            datas.push(adicionarDias(datas[1], 35));
+            // 4ª data: 4 semanas (28 dias) após a 3ª data
+            datas.push(adicionarDias(datas[2], 28));
+        }
+
+        const nomesBlocos = {
+            'P1': ['Bloco 1', 'Bloco 2', 'Bloco 3', 'Bloco 4'],
+            'P2': ['Bloco 5', 'Bloco 6', 'Bloco 7', 'Bloco 8'],
+            'P3': ['Bloco 9', 'Bloco 10', 'Bloco 11', 'Bloco 12'],
+            'P4': ['Bloco 13', 'Bloco 14', 'Bloco 15', 'Bloco 16'],
+            'P5': ['Cluster 1 - Área 1', 'Cluster 1 - Área 2', 'Cluster 2 - Área 1', 'Cluster 2 - Área 2'],
+            'P6': ['Cluster 1 - Área 1', 'Cluster 1 - Área 2', 'Cluster 2 - Área 1', 'Cluster 2 - Área 2'],
+            'P7': ['Cluster 1 - Área 1', 'Cluster 1 - Área 2', 'Cluster 2 - Área 1', 'Cluster 2 - Área 2'],
+            'P8': ['Cluster 1 - Área 1', 'Cluster 1 - Área 2', 'Cluster 2 - Área 1', 'Cluster 2 - Área 2']
+        };
+
+        const titulos = nomesBlocos[periodo] || ['Bloco 1', 'Bloco 2', 'Bloco 3', 'Bloco 4'];
+
+        htmlGerado += `<div class="area-title">Mentoria / Portfólio - ${periodo}</div>`;
+
+        datas.forEach((dataEntrega, idx) => {
+            const cardId = `mentoria_${periodo}_${idx + 1}_${dataEntrega.getTime()}`;
+            const isDone = localStorage.getItem(`card_done_${cardId}`) === 'true';
+
+            htmlGerado += `
+            <div class="card ${isDone ? 'completed' : ''}" id="${cardId}">
+                <div class="card-header">
+                    <div class="card-header-left">
+                        <input type="checkbox" class="card-checkbox" onchange="toggleCardComplete('${cardId}')" ${isDone ? 'checked' : ''}>
+                        <span>${titulos[idx]} (${periodo})</span>
+                    </div>
+                    <span class="data-main">${formatarData(dataEntrega)}</span>
+                </div>
+                <div class="sub-section">
+                    <div class="section-title title-m">● Mentoria / Portfólio</div>
+                    <div class="grid-config grid-header">
+                        <div>Configuração</div><div>Data</div><div>Tempo</div><div>Dia da Semana</div>
+                    </div>
+                    <div class="grid-config">
+                        <div>Prazo de entrega</div><div>${formatarData(dataEntrega)}</div><div>23:59</div><div>${obterDiaSemana(dataEntrega)}</div>
+                    </div>
+                    <div class="grid-config">
+                        <div>Disponível a partir de</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div><div>${formatarTextoVazio(null)}</div>
+                    </div>
+                    <div class="grid-config">
+                        <div>Até</div><div>${formatarData(dataEntrega)}</div><div>23:59</div><div>${obterDiaSemana(dataEntrega)}</div>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        return htmlGerado;
+    }
+
     function gerarCronograma() {
         const periodo = document.getElementById('periodo').value;
         const dataInicioInput = document.getElementById('dataInicio').value;
@@ -636,6 +768,13 @@
 
         if (!periodo || !dataInicioInput) {
             resultadoDiv.innerHTML = '<div class="alert">Por favor, preencha o Período e a Data de início do bloco.</div>';
+            return;
+        }
+
+        if (tipoAtividade === 'MENTORIA') {
+            resultadoDiv.innerHTML = gerarCronogramaMentoria(periodo, dataInicioInput);
+            document.getElementById('exportBarContainer').style.display = 'flex';
+            document.getElementById('searchBarContainer').style.display = 'block';
             return;
         }
 
@@ -756,7 +895,6 @@
                         </div>
                     </div>`;
 
-                    // Exibe no Encontro 8 (ou no último encontro com a Autoavaliação 04)
                     if (numeroEncontro === 8 || numAutoAv === 4) {
                         htmlGerado += `
                         <div class="sub-section">
