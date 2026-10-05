@@ -411,6 +411,7 @@
         <select id="tipoAtividade" onchange="salvarFormulario(); validarEsalvarData();">
             <optgroup label="Cronogramas Mensais">
                 <option value="TODOS" selected>Tudo (Encontros, Autoavaliação e Quizzes)</option>
+                <option value="ENCONTROS_AUTOAV">Apenas Encontros de Tutoria e Autoavaliação</option>
                 <option value="ENCONTROS">Apenas Encontros de Tutoria</option>
                 <option value="AUTOAVALIACAO">Apenas Autoavaliação</option>
                 <option value="QUIZZES">Apenas Quizzes</option>
@@ -850,12 +851,13 @@
             }
         }
 
-        let horaPadrao = (periodo === 'P2') ? "12:00" : "23:59";
+        // P2 e P4 agora usam o horário 12:00
+        let horaPadrao = (periodo === 'P2' || periodo === 'P4') ? "12:00" : "23:59";
         let htmlGerado = '';
         const ehDivididoPorAreas = ['P5', 'P6', 'P7', 'P8'].includes(periodo);
 
-        const exibirEncontros = (tipoAtividade === 'TODOS' || tipoAtividade === 'ENCONTROS');
-        const exibirAutoAvFiltro = (tipoAtividade === 'TODOS' || tipoAtividade === 'AUTOAVALIACAO');
+        const exibirEncontros = (tipoAtividade === 'TODOS' || tipoAtividade === 'ENCONTROS' || tipoAtividade === 'ENCONTROS_AUTOAV');
+        const exibirAutoAvFiltro = (tipoAtividade === 'TODOS' || tipoAtividade === 'AUTOAVALIACAO' || tipoAtividade === 'ENCONTROS_AUTOAV');
         const exibirQuizzesFiltro = (tipoAtividade === 'TODOS' || tipoAtividade === 'QUIZZES');
 
         if (exibirEncontros || exibirAutoAvFiltro) {
