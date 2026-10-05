@@ -850,7 +850,6 @@
                 proximaData = adicionarDias(proximaData, 3);
             }
         } else {
-            // P5, P6 (Domingos) e P7, P8 (Quartas-feiras): incrementa 7 dias
             proximaData = adicionarDias(proximaData, 7);
         }
 
@@ -926,6 +925,9 @@
             return;
         }
 
+        // Define dinamicamente o título do documento para o nome do ficheiro exportado em PDF
+        document.title = `${periodo} - Cronograma de entregas de tutorias`;
+
         if (!validarEsalvarData()) {
             resultadoDiv.innerHTML = '';
             document.getElementById('exportBarContainer').style.display = 'none';
@@ -962,15 +964,13 @@
                 dataAtual = adicionarDias(dataAtual, 1);
             }
         } else if (['P7', 'P8'].includes(periodo)) {
-            // Regra para P7 e P8: calcula o Domingo base do P5/P6 e ajusta +3 dias para ser a Quarta-feira
             while (encontros.length < 8) {
                 if (dataAtual.getDay() === 0) {
-                    encontros.push(adicionarDias(dataAtual, 3)); // +3 dias -> Quarta-feira
+                    encontros.push(adicionarDias(dataAtual, 3));
                 }
                 dataAtual = adicionarDias(dataAtual, 1);
             }
         } else {
-            // P1 (Quarta/Domingo) e P5/P6 (Domingo)
             let diasPermitidos = (periodo === 'P1') ? [3, 0] : [0];
             while (encontros.length < 8) {
                 if (diasPermitidos.includes(dataAtual.getDay())) {
